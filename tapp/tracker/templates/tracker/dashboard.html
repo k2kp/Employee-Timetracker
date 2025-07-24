@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2> Welcome, {{user.username}}!</h2>
+<p>This is your Dashboard.</p>
+<h2>Your Projects:</h2>
+<ul>
+    {% for project in projects %}
+        <li>{{ project.name }} - {{ project.description }}</li>
+    {% empty %}
+        <li>No projects found.</li>
+    {% endfor %}
+    
+<a href="{% url 'create_project' %}">Create New Project</a>
+</ul>
+
+<h2>Your Time Entries:</h2>
+<ul>
+    {% for entry in time_entries %}
+        <li>{{ entry.project.name }} - {{ entry.hours }} hours on {{ entry.date }}</li>
+    {% empty %}
+        <li>No time entries found.</li>
+    {% endfor %}
+</ul>
+<form method="post" action="{% url 'logout' %}">
+  {% csrf_token %}
+  
+</form>
+
+
+<br>
+<br>
+<br>
+{% for entry in time_entries %}
+    <li>
+        {{ entry.project.name }} - {{ entry.hours }} hours on {{ entry.date }}
+        <a href="{% url 'edit_time_entry' entry.id %}">Edit</a> |
+        <a href="{% url 'delete_time_entry' entry.id %}">Delete</a>
+    </li>
+{% endfor %}
+
+{% endblock %}
+
+
