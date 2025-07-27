@@ -80,3 +80,15 @@ def create_project(request):
     else:
         form = ProjectForm()
     return render(request, 'tracker/create_project.html', {'form': form})
+
+
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect
+from .models import Project
+
+@login_required
+def delete_project(request, project_id):
+    project = get_object_or_404(Project, id=project_id, created_by=request.user)
+    project.delete()
+    return redirect('dashboard')

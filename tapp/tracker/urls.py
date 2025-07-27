@@ -9,5 +9,6 @@ urlpatterns = [
     path('edit/<int:entry_id>/', views.edit_time_entry, name='edit_time_entry'),
     path('create-project/', create_project, name='create_project'),
     path('delete/<int:entry_id>/', views.delete_time_entry, name='delete_time_entry'),
+    path('delete-project/<int:project_id>/', views.delete_project, name='delete_project'),
 
 ]

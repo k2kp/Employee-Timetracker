@@ -6,7 +6,8 @@
 <h2>Your Projects:</h2>
 <ul>
     {% for project in projects %}
-        <li>{{ project.name }} - {{ project.description }}</li>
+        <li>{{ project.name }} - {{ project.description }}
+        <a href="{% url 'delete_project' project.id %}" onclick="return confirm('Are you sure you want to delete this project?');">Delete</a></li>
     {% empty %}
         <li>No projects found.</li>
     {% endfor %}
