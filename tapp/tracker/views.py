@@ -23,6 +23,8 @@ def dashboard(request):
 
 from .forms import TimeEntryForm
 from django.shortcuts import redirect
+from datetime import datetime, timedelta
+
 
 @login_required
 def add_time_entry(request):
@@ -31,25 +33,47 @@ def add_time_entry(request):
         if form.is_valid():
             entry = form.save(commit=False)
             entry.user = request.user
+            entry.date = form.cleaned_data['date']
+
+            start = datetime.combine(entry.date, entry.start_time)
+            end = datetime.combine(entry.date, entry.end_time)
+
+            if end < start:
+                end += timedelta(days=1)
+
+            duration = end - start
+            entry.hours = round(duration.total_seconds() / 3600, 2)
+
             entry.save()
-            return redirect('dashboard')  # make sure this matches your dashboard URL name
+            return redirect('dashboard')
     else:
         form = TimeEntryForm()
+
+    
     return render(request, 'tracker/add_time_entry.html', {'form': form})
 
 from datetime import timedelta
 from django.shortcuts import get_object_or_404, redirect, render
 from .models import TimeEntry
-from .forms import TimeEntryForm  # make sure this import exists
-
+from .forms import TimeEntryForm  
 def edit_time_entry(request, entry_id):
     entry = get_object_or_404(TimeEntry, id=entry_id, user=request.user)
     if request.method == 'POST':
         form = TimeEntryForm(request.POST, instance=entry)
         if form.is_valid():
             entry = form.save(commit=False)
+
             if entry.start_time and entry.end_time:
-                entry.duration = entry.end_time - entry.start_time
+                start = datetime.combine(datetime.today(), entry.start_time)
+                end = datetime.combine(datetime.today(), entry.end_time)
+
+                if end < start:
+                    end += timedelta(days=1)  
+
+                duration = end - start
+                entry.duration = round(duration.total_seconds() / 3600, 2)  
+                
+            entry.save()
             entry.save()
             return redirect('dashboard')
     else:
@@ -92,3 +116,29 @@ def delete_project(request, project_id):
     project = get_object_or_404(Project, id=project_id, created_by=request.user)
     project.delete()
     return redirect('dashboard')
+
+
+from django.shortcuts import render
+from django.db.models import Sum
+from .models import Project, TimeEntry
+
+def dashboard(request):
+    
+    projects = Project.objects.filter(created_by=request.user)
+
+    
+    project_hours = {}
+    for project in projects:
+        total_duration = TimeEntry.objects.filter(project=project, user=request.user).aggregate(
+            total=Sum('duration')
+        )['total'] or 0
+        project_hours[project] = round(total_duration, 2)
+
+    
+    time_entries = TimeEntry.objects.filter(user=request.user)
+
+    return render(request, 'tracker/dashboard.html', {
+        'project_hours': project_hours,
+        'time_entries': time_entries,
+    })
+
