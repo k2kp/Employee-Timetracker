@@ -14,7 +14,18 @@ from django.shortcuts import redirect
 @login_required
 def dashboard(request):
     projects = Project.objects.all()
+    
+    project_hours = {}
+    for project in projects:
+        total_duration = TimeEntry.objects.filter(project=project, user=request.user).aggregate(
+            total=Sum('duration')
+        )['total'] or 0
+        project_hours[project] = round(total_duration, 2)
+
+    
     time_entries = TimeEntry.objects.filter(user=request.user)
+
+   
     return render(request, 'tracker/dashboard.html', {
         'projects': projects,
         'time_entries': time_entries
@@ -121,24 +132,4 @@ def delete_project(request, project_id):
 from django.shortcuts import render
 from django.db.models import Sum
 from .models import Project, TimeEntry
-
-def dashboard(request):
-    
-    projects = Project.objects.filter(created_by=request.user)
-
-    
-    project_hours = {}
-    for project in projects:
-        total_duration = TimeEntry.objects.filter(project=project, user=request.user).aggregate(
-            total=Sum('duration')
-        )['total'] or 0
-        project_hours[project] = round(total_duration, 2)
-
-    
-    time_entries = TimeEntry.objects.filter(user=request.user)
-
-    return render(request, 'tracker/dashboard.html', {
-        'project_hours': project_hours,
-        'time_entries': time_entries,
-    })
 
