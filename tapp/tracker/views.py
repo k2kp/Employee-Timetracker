@@ -5,6 +5,10 @@ from .models import Project, TimeEntry
 from .forms import TimeEntryForm
 from django.shortcuts import redirect
 
+from django.db.models import Sum
+
+
+
 
 
 # Create your views here.
@@ -14,13 +18,18 @@ from django.shortcuts import redirect
 @login_required
 def dashboard(request):
     projects = Project.objects.all()
+    entries = TimeEntry.objects.filter(user=request.user)
     
     project_hours = {}
     for project in projects:
-        total_duration = TimeEntry.objects.filter(project=project, user=request.user).aggregate(
-            total=Sum('duration')
-        )['total'] or 0
-        project_hours[project] = round(total_duration, 2)
+        total_duration = entries.filter(project=project).aggregate(Sum('duration'))['duration__sum']
+        if total_duration:
+            hours = round(total_duration,2)
+        else:
+            hours=0
+        project_hours[project] = hours
+
+
 
     
     time_entries = TimeEntry.objects.filter(user=request.user)
@@ -52,8 +61,9 @@ def add_time_entry(request):
             if end < start:
                 end += timedelta(days=1)
 
-            duration = end - start
-            entry.hours = round(duration.total_seconds() / 3600, 2)
+            duration = (end - start).total_seconds() / 3600 
+            entry.duration = round(duration, 2)
+
 
             entry.save()
             return redirect('dashboard')
@@ -67,6 +77,8 @@ from datetime import timedelta
 from django.shortcuts import get_object_or_404, redirect, render
 from .models import TimeEntry
 from .forms import TimeEntryForm  
+
+
 def edit_time_entry(request, entry_id):
     entry = get_object_or_404(TimeEntry, id=entry_id, user=request.user)
     if request.method == 'POST':
@@ -128,8 +140,93 @@ def delete_project(request, project_id):
     project.delete()
     return redirect('dashboard')
 
+from .models import TimeEntry, Project
+from .forms import TimeEntryForm
+from django.contrib.auth.decorators import login_required
+from .models import UserProfile
 
-from django.shortcuts import render
-from django.db.models import Sum
-from .models import Project, TimeEntry
+@login_required
+def employee_entry(request):
+    if request.user.userprofile.is_employee:
+        if request.method == 'POST':
+            form = TimeEntryForm(request.POST)
+            if form.is_valid():
+                entry = form.save(commit=False)
+                entry.user = request.user
+                entry.save()
+                return redirect('employee_success')
+        else:
+            form = TimeEntryForm()
+        return render(request, 'tracker/employee_entry.html', {'form': form})
+    else:
+        return redirect('dashboard')  # send admins to admin dashboard
+    
+
+from django.contrib.auth.decorators import login_required
+
+@login_required
+def employee_entry(request):
+    ...
+
+
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.shortcuts import redirect
+
+from django.contrib.auth.decorators import user_passes_test
+
+def is_employee(user):
+    return user.groups.filter(name='Employees').exists()
+
+@login_required
+@user_passes_test(is_employee)
+def employee_entry(request):
+    if request.method == 'POST':
+        form = TimeEntryForm(request.POST)
+        if form.is_valid():
+            entry = form.save(commit=False)
+            entry.user = request.user
+            entry.date = form.cleaned_data['date']
+
+            start = datetime.combine(entry.date, entry.start_time)
+            end = datetime.combine(entry.date, entry.end_time)
+            if end < start:
+                end += timedelta(days=1)
+
+            duration = end - start
+            entry.duration = duration
+            entry.save()
+            return redirect('employee_success')  # show a simple success page
+    else:
+        form = TimeEntryForm()
+
+    return render(request, 'tracker/employee_entry.html', {'form': form})
+
+@login_required
+def dashboard(request):
+    if is_employee(request.user):
+        return redirect('employee_entry')
+    projects = Project.objects.all()
+    entries = TimeEntry.objects.filter(user=request.user)
+    
+    project_hours = {}
+    for project in projects:
+        total_duration = entries.filter(project=project).aggregate(Sum('duration'))['duration__sum']
+        if total_duration:
+            hours = round(total_duration,2)
+        else:
+            hours=0
+        project_hours[project] = hours
+
+
+
+    
+    time_entries = TimeEntry.objects.filter(user=request.user)
+
+   
+    return render(request, 'tracker/dashboard.html', {
+        'projects': projects,
+        'time_entries': time_entries
+    })
+
+
 

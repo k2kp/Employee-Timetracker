@@ -48,10 +48,10 @@
         <th>Project</th>
         <th>Total Hours</th>
     </tr>
-    {% for project, hours in project_hours.items %}
+    {% for project, duration in project_duration.items %}
     <tr>
         <td>{{ project.name }}</td>
-        <td>{{ hours }}</td>
+        <td>{{ duration}}</td>
     </tr>
     {% empty %}
     <tr>
